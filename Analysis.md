@@ -30,7 +30,7 @@ return _ModuleFeatureExtractor(
 ## CDF of chunk latencies by pipeline component
 Let's confirm that the neural network forward pass is the primary bottleneck by plotting the latencies of each pipeline component.
 
-<img width="789" height="590" alt="image" src="https://github.com/user-attachments/assets/ef4d8ffb-fbb4-4d4c-b677-89fc41c9a71f" />
+<img width="788" height="590" alt="image" src="https://github.com/user-attachments/assets/d199e5b3-452f-4030-92eb-3d3daf9d5cae" />
 
 The chunk processing latency is dominated by the Emformer forward pass (which includes Beam Search), so latency optimizations should be focused there.
 
@@ -49,6 +49,7 @@ Note that, as measured in the code provided, the RTF includes any padding needed
 
 
 There is a relatively tight spread of RTF around 1.0, with some above 1.0 [in this particular run, 4 out of 25 audio files had an RTF > 1]. This requires performance optimization to consistently meet real time streaming requirements.
+
 
 
 
