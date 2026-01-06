@@ -64,8 +64,7 @@ We can see the TTFT is typically larger than steady-state processing latency, an
 Using `torch.profile`, we can extract the per-operator times of the RNNT Emformer forward pass (This is provided as a separate notebook, as enabling profiling, especially with shape capture, affects latency, but we can still get an idea of operator dominance)
 
 -----------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ----------------------------------------------  
-                         Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls                                    Input Shapes  
------------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ----------------------------------------------  
+                         Name    Self CPU %      Self CPU   CPU total %     CPU total  CPU time avg    # of Calls                                    Input Shapes   
                  aten::linear         0.38%     480.413us        21.85%      27.611ms       1.381ms            20              [[5, 1, 512], [2048, 512], [2048]]  
                   aten::addmm        21.04%      26.585ms        21.27%      26.872ms       1.344ms            20         [[2048], [5, 512], [512, 2048], [], []]  
                  aten::linear         0.28%     348.930us        20.73%      26.193ms       6.548ms             4        [[10, 1, 1, 1024], [4097, 1024], [4097]]  
@@ -89,6 +88,7 @@ Using `torch.profile`, we can extract the per-operator times of the RNNT Emforme
 -----------------------------  ------------  ------------  ------------  ------------  ------------  ------------  ----------------------------------------------  
 
 We can focus on the CPU total column, where it's clear that most of inference time is spent in the `linear` and `addmm` layers - both matmul-based operators. The data is also split by different input shapes. We can clearly see the 20 Emformer block layers in the # of Calls counts.
+
 
 
 
