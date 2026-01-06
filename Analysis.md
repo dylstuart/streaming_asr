@@ -50,6 +50,13 @@ Note that, as measured in the code provided, the RTF includes any padding needed
 
 There is a relatively tight spread of RTF around 1.0, with some above 1.0 [in this particular run, 4 out of 25 audio files had an RTF > 1]. This requires performance optimization to consistently meet real time streaming requirements.
 
+## Per-chunk latency over time
+
+<img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/ea57bba1-787e-4465-b935-d61282085080" />
+
+We can see the TTFT is typically larger than steady-state processing latency, and that the processing latency doesn't appear to significantly increase over time.
+
+
 
 
 
