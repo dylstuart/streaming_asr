@@ -1,13 +1,20 @@
-# streaming_asr
-Streaming ASR Model Benchmarking and Optimization
+# Streaming ASR Model Benchmarking and Optimization
+This repository contains python notebooks providing profiling and analysis of an Emforming ASR model running on CPU.
+
+The primary notebook is `asr_analysis.ipynb`, which includes code to run and analyse the latency of the full ASR pipeline.
+
+The `asr_analysis_torch_profile.ipynb` is used solely to extract a per-operater CPU latency breakdown (the act of which affects overall pipeline latency).
 
 ## Setup
-winget install ffmpeg -v 6.1
 
 pip3 install -r requirements.txt
 Note: torchaudio.io.StreamReader used in this repo requires torchaudio==2.8.0
 
-Dataset to download:
+Additional on Windows for ffmpeg installation:
+`winget install ffmpeg -v 6.1`
+
+### Dataset:
+Samples in the `/samples` directory are a subset randomly selected from the dataset at the following link:
 https://datacollective.mozillafoundation.org/datasets/cminc35no007no707hql26lzk
 
 ## Relevant metrics
