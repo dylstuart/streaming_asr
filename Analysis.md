@@ -1,5 +1,6 @@
 # Model Description
-The pipeline primarily consists of 3 components:
+The pipeline primarily consists of 3 components (code from installed torchaudio package below):
+
 Feature extractor:
 
 ```python
@@ -24,6 +25,8 @@ return _ModuleFeatureExtractor(
    ```python
    return _SentencePieceTokenProcessor(local_path)
 ```
+
+The underlying pretrained RNNT model instantiated seems is downloaded from: https://download.pytorch.org/torchaudio/models/emformer_rnnt_base_librispeech.pt
 
 # Latency Analysis
 
@@ -55,6 +58,7 @@ There is a relatively tight spread of RTF around 1.0, with some above 1.0 [in th
 <img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/ea57bba1-787e-4465-b935-d61282085080" />
 
 We can see the TTFT is typically larger than steady-state processing latency, and that the processing latency doesn't appear to significantly increase over time.
+
 
 
 
