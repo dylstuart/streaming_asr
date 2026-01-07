@@ -6,30 +6,22 @@ The primary notebook is `asr_analysis.ipynb`, which includes code to run and ana
 The `asr_analysis_torch_profile.ipynb` is used solely to extract a per-operater CPU latency breakdown (the act of which affects overall pipeline latency).
 
 ## Setup
+This repo is tested with `python 3.12.12` on `Ubuntu 22.04.5 LTS` in a Google Colab environment.
 
+The notebooks provided include installation of additional dependencies, but many dependencies are pre-installed in the standard Colab environment.
+
+If running in a local environment, you can install dependencies with:
+```
 pip3 install -r requirements.txt
+```
 Note: torchaudio.io.StreamReader used in this repo requires torchaudio==2.8.0
 
-Additional on Windows for ffmpeg installation:
+If your local environment is Windows, you can install ffmpeg with:
 `winget install ffmpeg -v 6.1`
 
 ### Dataset:
-Samples in the `/samples` directory are a subset randomly selected from the dataset at the following link:
-https://datacollective.mozillafoundation.org/datasets/cminc35no007no707hql26lzk
-
-## Relevant metrics
-Time to first token
-
-Real-Time Factor
-
-Bottleneck analysis:
-- Feature extraction latency
-- RNNT model latency
-- Decoding latency
-
-## Optimization opportunities
-Amortize long-latency operations over larger chunks
-- Trades off TTFT (responsiveness) vs RTF/Throughput
+Audio samples in the `/samples` directory are a subset randomly selected from the Mozilla Common Voice dataset at the following link:
+[Mozilla Common Voice Spontaneous Speech ASR Shared Task Test Data](https://datacollective.mozillafoundation.org/datasets/cminc35no007no707hql26lzk)
 
 ## Further reading
 RNNTBundle details: https://docs.pytorch.org/audio/2.2.0/generated/torchaudio.pipelines.RNNTBundle.html#torchaudio.pipelines.RNNTBundle
