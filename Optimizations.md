@@ -1,8 +1,8 @@
 ## Emformer Model Architecture
 <img width="597" height="514" alt="image" src="https://github.com/user-attachments/assets/1ebe15d3-ef03-40e1-99e5-6b4b34eaac94" />
 
-The specific model instantiated by the code consists of an input projection, 20 emformer layers, followed by 3 LSTM layers, and finally 2 linear layers. The total size of the model with FP32 parameters is 292MiB.
-For RTF requirements, we need one pass through this model every 0.16s, for a parameter bandwidth requirement of 1.78GiB/s
+The specific model instantiated by the code primarily consists of an input projection, 20 emformer layers, 3 LSTM layers, and finally 2 linear layers (not including various elementwise and nonlinear operations). The total size of the model with FP32 parameters is 292MiB.
+For RTF < 1, we need one pass through this model every 0.16s, for a parameter bandwidth requirement of 1.78GiB/s. The K,V cache size will be relatively small in comparison to the model weights, as the context history does not grow indefinitely.
 
 Running `lscpu` in the Colab instance, the Intel Xeon processor being used has the following memory hierarchy:
 
@@ -83,6 +83,7 @@ There are multiple further options to consider at the algorithmic level that may
 Increasing the frame width/window that the Mel Spectrogram-based feature extractor considers to produce a single vector of inputs to the network would mean less inference compute per unit of audio time, but may incur accuracy challenges - this is likely a parameter that has been fine tuned for this trade-off already.
 
 Decreasing the right-context size used by the Emformer would similarly result in reduced inference compute (better RTF), but may again impact accuracy. This has the additional benefit of potentially reducing the TTFT, as we can capture/process less audio input at the start of the stream before making an inference.
+
 
 
 
