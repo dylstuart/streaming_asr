@@ -17,14 +17,16 @@ This means the model weights will not fit in Cache and will be read from DDR for
 
 The model hidden dimension is 512, with a 4x expansion in the feedforward block. For 20 layers and 640 frames of context, this is 12.5MiB of K,V cache. However, the beam search width is a multiplier on the K,V cache size, as we (naively) must keep the cache live for each path in the tree of the beam search. Nevertheless, even with a `beam_width` of 10 used in the notebook, the additional overall bandwidth requirements are still unlikely to be a significant bottleneck (Additional 0.76GiB/s).
 
+## Optimization Proposals
+
 ### Low hanging fruit
 Some quick options to try in different optimization scenarios include batching across the chunks, however since this model uses overlapping chunks in an autoregressive manner (`T_i` depends on `T_i-1`), this is not applicable here. True batching oly applies in the multi-stream scenario (e.g. multi-user), and then will only serve to improve compute efficiency/aggregate system throughput, but not RTF or TTFT latency.
 
 Compiling the model with torch.compile() can optimize the model via operator fusion, optimized kernel selection etc. I tried this by adding `decoder = torch.compile(decoder)`, and saw no meaningful difference (i.e. average chunk latency difference in the noise), and most optional arguments for torch.compile() are for GPU inference.
 
-## Mixed/Reduced Precision Inference
+### Mixed/Reduced Precision Inference
 
-Naive casting, using torch.amp (below), incurred an overhead (~2x performance loss) as the casting itself incurs significant latency.
+The provided model has FP32 parameters and computes on fp32 intermediate activations. On hardware that supports increased throughput with smaller datatypes (e.g. bfloat16, fp16, fp8), mixed or reduced precision inference can provide significant performance improvements over an fp32 baseline. Naive casting, using torch.amp (below), incurred an overhead (~2x performance loss) as the casting itself seems to incur significant latency in this case.
 ```python
 with torch.inference_mode(), torch.amp.autocast(
                 'cpu',
@@ -33,9 +35,16 @@ with torch.inference_mode(), torch.amp.autocast(
             ):
 ```
 
-## MLA
-<img width="1547" height="472" alt="image" src="https://github.com/user-attachments/assets/9e837bd7-81b8-45f6-ab92-a9a65e3774c2" />
-DeepSeek’s innovation is to introduce a weight matrix WDKV∈Rdc×d to compress the input X∈Rd×n to a lower rank matrix CKV∈Rdc×n. This CKV matrix is then stored in the cache. Then two other weight matrices WUK and WUV∈RdhH×dc uncompress the same CKV matrix to the key K and value V respectively. The above figure shows this visually.
+However, 
+
+### Mixture-of-Experts
+
+Recalling the operator breakdown table in `Analysis.md`, a significant proportion of the time and compute goes to the linear layers of the feed-forward network in each Emformer block (as much as 34% of CPU time in the run profiled). One technique to reduce inference compute/bandwidth requirements that has become widespread in laguage modelling is to use Mixture-of-Expert (MoE) Feed Forward Networks (FFNs) in the Transformer blocks of LLMs.
+
+<img width="1148" height="665" alt="image" src="https://github.com/user-attachments/assets/43046f8f-23b0-4431-978c-502329fb2c20" />
+
+The key concept is shown in the diagram above, where each FFN is replaced with a number of parallel "Expert" FFNs, each with unique weigths. At inference time, each token is dynamically routed to some small subset of the experts, and the outputs of the experts are combined with a weighted sum based on a score that is output by the router/gating function. The key saving comes from the fact that the dimensions of each expert FFN can be smaller than the dimensions that would be required to achieve the same accuracy using a monolithic FFN, as each smaller expert FFN can "specialize" in processing certain types of input tokens.
+
 
 
 
