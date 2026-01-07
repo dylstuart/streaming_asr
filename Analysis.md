@@ -1,4 +1,10 @@
-# Model Description
+# Latency/Performance Analysis
+
+This document describes the performance analysis of the Emformer RNNT based streaming ASR pipeline, originally implemented in [this tutorial](https://docs.pytorch.org/audio/main/tutorials/online_asr_tutorial.html).
+
+Performance analysis was performed in a Google Colab instance using the provided notebooks in this repo, running on an Intel Xeon Broadwell processor running Ubuntu 22.04.
+
+## Model Description
 The pipeline primarily consists of 3 components (code from installed torchaudio package below):
 
 Feature extractor:
@@ -26,40 +32,64 @@ return _ModuleFeatureExtractor(
    return _SentencePieceTokenProcessor(local_path)
 ```
 
-The underlying pretrained RNNT model instantiated seems is downloaded from: https://download.pytorch.org/torchaudio/models/emformer_rnnt_base_librispeech.pt
+The underlying pretrained RNNT model instantiated is available from: https://download.pytorch.org/torchaudio/models/emformer_rnnt_base_librispeech.pt
 
-# Latency Analysis
+## Latency Analysis
 
-## CDF of chunk latencies by pipeline component
-Let's confirm that the neural network forward pass is the primary bottleneck by plotting the latencies of each pipeline component.
+This section describes various latency metrics measured in the python notebooks, and plots the relevant statistics for analysis and to inform potential optimization opportunities.
 
-<img width="788" height="590" alt="image" src="https://github.com/user-attachments/assets/d199e5b3-452f-4030-92eb-3d3daf9d5cae" />
+### CDF of chunk latencies by pipeline component
+Let's confirm that the neural network forward pass is the primary bottleneck by plotting the latencies of each pipeline component. We measure the latencies of the calls to each of the 3 pipeline components described above and plot the cumulative density of these latencies.
+
+<img width="790" height="590" alt="image" src="https://github.com/user-attachments/assets/8bbbcc7f-a398-4804-8331-2f90ee29bf0b" />
 
 The chunk processing latency is dominated by the Emformer forward pass (which includes Beam Search), so latency optimizations should be focused there.
 
-## Time To First Token
-The time to first token (TTFT) gives a measure of responsiveness of the application. In a streaming scenario, it will represent how soon after the request for output the user will have to wait to begin receiving output.
+Chunk Latencies:
 
-<img width="687" height="547" alt="image" src="https://github.com/user-attachments/assets/425903d3-de83-4731-85db-2d30b2145c70" />
+| metric | value (s) |
+| ------ | ------ |
+| mean | 0.148 |
+| p50 | 0.141 |
+| p90 | 0.209 |
+| p99 | 0.279 |
 
+The median total chunk processing latency (141ms) is notable lower than the real size of the audio chunk (160ms), however there is a long tail (p99) and even one chunk that takes over 350ms to process.
 
-## Real Time Factor
+### Time To First Token
+The time to first token (TTFT) gives a measure of responsiveness of the application. In a streaming scenario, it will represent how soon after the request for output the user will have to wait to begin receiving output. We measure the time from stream creation to the output of the first call to the sentencepiece token processor.
+
+<img width="700" height="547" alt="image" src="https://github.com/user-attachments/assets/d06ca6a2-9479-4503-acbf-9a5236497bc8" />
+
+TTFT:
+
+ | metric | value (s) |
+ | ------ | ------ |
+ | mean | 0.228 |
+ | p50 | 0.219 |
+ | p90 | 0.246 |
+ | p99 | 0.356 |
+
+ The values are quite skewed right, with a cluster close to ~225ms and a very similar mean, median, and 90th percentile. However, there is a relatively long tail with the p99 value being 1.63x the p50.
+
+### Real Time Factor
 Real time factor (RTF) is a ratio of the processing time for a given sample of input to the actual duration of the sample. An RTF > 1 means that it takes longer to process an input than the duration of the input, meaning the output will lag further and further behind the real-time input (unless audio frames are "dropped" to allow catch-up), leading to eventual failure of the application from either a practical perspecitve (user experience is too poor to be useful) or a system perspective (input buffers run out of memory). An RTF <= 1 is therefore required for continuous streaming ASR without loss of quality.
 
 Note that, as measured in the code provided, the RTF includes any padding needed for the last chunk in the audio sample, introducing some error if we use a strict definition of RTF. However, in the streaming case, if we consider a very long audio stream, this final padding diminishes to insignificance, and so measuring this way gives an indication of RTF in the final application context. Even as is, with a segment/chunk duration of 0.16s and audio samples of duration in the order of ~10s, this error will be at most 1%-2%.
 
-<img width="678" height="547" alt="image" src="https://github.com/user-attachments/assets/99daa727-1466-4866-a39e-cb1e5a75bec4" />
+<img width="696" height="547" alt="image" src="https://github.com/user-attachments/assets/17681ff4-e8ce-49ae-bd9d-6ade021b14dc" />
 
+There is a relatively tight spread of RTF around 0.95. This requires performance optimization to consistently meet real time streaming requirements - some previous runs had multiple audio samples processed with RTF > 1.
 
-There is a relatively tight spread of RTF around 1.0, with some above 1.0 [in this particular run, 4 out of 25 audio files had an RTF > 1]. This requires performance optimization to consistently meet real time streaming requirements.
+### Per-chunk latency over time
 
-## Per-chunk latency over time
+The next plot shows how the chunk processing latency changes over time as we stream through each audio file. Each line is a separate audio file/sample. The red line represents 160ms, which is the duration of each chunk, and therefore is the maximum average latency to achieve RTF < 1.
 
-<img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/ea57bba1-787e-4465-b935-d61282085080" />
+<img width="989" height="590" alt="image" src="https://github.com/user-attachments/assets/31e150a2-9aea-4bb4-ad62-2091ad179f4a" />
 
-We can see the TTFT is typically larger than steady-state processing latency, and that the processing latency doesn't appear to significantly increase over time.
+We can see the TTFT is typically larger than steady-state processing latency, and that the processing latency doesn't appear to significantly increase over time. This is good, as it confirms the various caching mechanisms are working to not grow the latency linearly as more history is accrued.
 
-## Network Latency Breakdown
+### Network Latency Breakdown
 
 Using `torch.profile`, we can extract the per-operator times of the RNNT Emformer forward pass (This is provided as a separate notebook, as enabling profiling, especially with shape capture, affects latency, but we can still get an idea of operator dominance)
 
@@ -90,6 +120,7 @@ Using `torch.profile`, we can extract the per-operator times of the RNNT Emforme
 We can focus on the CPU total column, where it's clear that most of inference time is spent in the `linear` and `addmm` layers - both matmul-based operators. The data is also split by different input shapes. We can clearly see the 20 Emformer block layers in the # of Calls counts.
 
 The Total FLOPs column also correlates with the CPU total time for `addmm` layers, indicating that these matmul layers may be compute bound (`torch.profile` only reported flops for `addmm` layers, but we can calculate the `linear` layer flops equivalently ourselves, or assume the flops for a `linear` layer is equivalent to the flops for an `addmm` of the same shape)
+
 
 
 
