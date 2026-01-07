@@ -24,7 +24,7 @@ Compiling the model with torch.compile() can optimize the model via operator fus
 
 ### Mixed/Reduced Precision Inference
 
-The provided model has FP32 parameters and computes on fp32 intermediate activations. On hardware that supports increased throughput with smaller datatypes (e.g. bfloat16, fp16, fp8), mixed or reduced precision inference can provide significant performance improvements over an fp32 baseline. Naive casting, using torch.amp (below), incurred an overhead (~2x performance loss) as the casting itself seems to incur significant latency in this case.
+The provided model has FP32 parameters and computes on fp32 intermediate activations. On hardware that supports increased throughput with smaller datatypes (e.g. bfloat16, fp16, fp8), mixed or reduced precision inference can provide significant performance improvements over an fp32 baseline. Naive casting, using torch.amp (below), incurred an overhead (~2x performance loss) as the casting of the weights itself seems to incur significant latency in this case.
 ```python
 with torch.inference_mode(), torch.amp.autocast(
                 'cpu',
@@ -33,7 +33,7 @@ with torch.inference_mode(), torch.amp.autocast(
             ):
 ```
 
-However, 
+To fully benefit from this optimization, we could either re-train the full network in fp16/bf16 (or, more effectively, cast and then fine-tune the weights), or try direct casting offline of the weights to produce a new frozen .pt of the model.
 
 ### Mixture-of-Experts
 
@@ -71,15 +71,18 @@ The output of the experts to be combined/aggregated as a weighted sum per-token 
 Besides the router and expert aggregation, the implementation of each Expert FFN is identical to the standard FFN already used in the provided Emformer RNNT model, with the exception that the dimensions may change.
 The exact dimensions to use, and indeed the general parameters of the MoE block (including the `k` in top-k) would need emperical analysis to ensure there isn't an accuracy issue. As a starting point, let's assume k=2 and a reduced FFN intermediate dimension of 768 (as opposed to the current 2048), and 8 experts.
 
-During the forward pass, the current flops per FFN per token is approx. `2*(512*2048 + 2048*512) = 4,194,304`. With the MoE change, this would reduce to `2*(512*768 + 768*512)*2 = 3,145,728`, a 25% flops saving. The cost of this is that the memory footprint of each FFN has increased from `4Bytes * (512*2048 + 2048*512) = 8MiB` to `4Bytes * (512*768 + 768*512)*8 = 24MiB`, a 3x increase. However, if the FFN is truly compute-bound on CPU rather than bandwidth-bound, this will still result in a performance improvement. Based on the profiling, this could be close to a 10% latency saving for the model forward pass, enough to improve the RTF of many experiments run to below 1.
+During the forward pass, the current flops per FFN per token is approx. `2*(512*2048 + 2048*512) = 4,194,304`. With the MoE change, this would reduce to `2*(512*768 + 768*512)*2 = 3,145,728`, a 25% flops saving. The cost of this is that the memory footprint of each FFN has increased from `4Bytes * (512*2048 + 2048*512) = 8MiB` to `4Bytes * (512*768 + 768*512)*8 = 24MiB`, a 3x increase. However, if the FFN is truly compute-bound on CPU rather than bandwidth-bound, this will still result in a performance improvement. Based on the profiling, this could be a ~9% latency saving for the model forward pass, enough to improve the RTF of some tail-latency samples in the experiments run to below 1.
 
 There is a risk that, in introducing MoE, we have converted a compute-bound problem into a bandwidth-bound one, as MoE routing of tokens to separate experts decreases the arithmetic intensity of the FFN. This would require further profiling of an initial implementation to determine.
 
 Of course, any modifications to the model architecture like this will require re-training the model. This is a cost consideration, as training runs can be costly.
 
+### Further considerations
+There are multiple further options to consider at the algorithmic level that may improve some measures of performance at the cost of accuracy or other trade-offs.
 
+Increasing the frame width/window that the Mel Spectrogram-based feature extractor considers to produce a single vector of inputs to the network would mean less inference compute per unit of audio time, but may incur accuracy challenges - this is likely a parameter that has been fine tuned for this trade-off already.
 
-
+Decreasing the right-context size used by the Emformer would similarly result in reduced inference compute (better RTF), but may again impact accuracy. This has the additional benefit of potentially reducing the TTFT, as we can capture/process less audio input at the start of the stream before making an inference.
 
 
 
