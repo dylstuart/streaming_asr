@@ -1,9 +1,9 @@
 # Streaming ASR Model Benchmarking and Optimization
-This repository contains Jupyter notebooks providing profiling and analysis of an Emforming ASR model running on CPU.
+This repository contains Jupyter notebooks providing profiling and analysis of an Emformer ASR model running on CPU.
 
 The primary notebook is `asr_analysis.ipynb`, which includes code to run and analyse the latency of the full ASR pipeline.
 
-The `asr_analysis_torch_profile.ipynb` is used solely to extract a per-operater CPU latency breakdown (the act of which affects overall pipeline latency).
+The `asr_analysis_torch_profile.ipynb` is a simplified notebook used solely to extract a per-operater CPU latency breakdown (the act of which affects overall pipeline latency) - see `Analysis.md`.
 
 ## Setup
 This repo is tested with `python 3.12.12` on `Ubuntu 22.04.5 LTS` in a Google Colab environment.
@@ -16,7 +16,7 @@ pip3 install -r requirements.txt
 ```
 Note: torchaudio.io.StreamReader used in this repo requires torchaudio==2.8.0
 
-The notebooks (.ipynb files) can be run by opening them in Colab (links included in files), starting a Jupyter server, using an IDE or IDE plugin (VSCode can run .ipynb notebooks).
+The notebooks (.ipynb files) can be run by opening them in Colab (links included in files), starting a Jupyter server, or using an IDE or IDE plugin (VSCode can run .ipynb notebooks).
 
 If your local environment is Windows, you can install ffmpeg with:
 `winget install ffmpeg -v 6.1`
