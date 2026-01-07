@@ -13,9 +13,7 @@ Running `lscpu` in the Colab instance, the Intel Xeon processor being used has t
 | L2    | 256KiB    |
 | L3    | 55MiB    |
 
-This means the model weights will not fit in Cache and will be read from DDR for each forward pass of the model. Still, 1.78GiB/s is not a significant BW constraint on a modern datacenter CPU.
-
-The model hidden dimension is 512, with a 4x expansion in the feedforward block. For 20 layers and 640 frames of context, this is 12.5MiB of K,V cache. However, the beam search width is a multiplier on the K,V cache size, as we (naively) must keep the cache live for each path in the tree of the beam search. Nevertheless, even with a `beam_width` of 10 used in the notebook, the additional overall bandwidth requirements are still unlikely to be a significant bottleneck (Additional 0.76GiB/s).
+This means the model weights will not fit in Cache and will be read from DDR for each forward pass of the model. Still, 1.78GiB/s is not a significant BW constraint on a modern datacenter CPU. It seems that this model on this hardware is primarily compute bound on the large matrix multiplication (linear, addmm) layers based on the operator breakdown in `Analysis.md`.
 
 ## Optimization Proposals
 
@@ -44,6 +42,7 @@ Recalling the operator breakdown table in `Analysis.md`, a significant proportio
 <img width="1148" height="665" alt="image" src="https://github.com/user-attachments/assets/43046f8f-23b0-4431-978c-502329fb2c20" />
 
 The key concept is shown in the diagram above, where each FFN is replaced with a number of parallel "Expert" FFNs, each with unique weigths. At inference time, each token is dynamically routed to some small subset of the experts, and the outputs of the experts are combined with a weighted sum based on a score that is output by the router/gating function. The key saving comes from the fact that the dimensions of each expert FFN can be smaller than the dimensions that would be required to achieve the same accuracy using a monolithic FFN, as each smaller expert FFN can "specialize" in processing certain types of input tokens.
+
 
 
 
