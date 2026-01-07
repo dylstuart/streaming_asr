@@ -1,5 +1,5 @@
 # Streaming ASR Model Benchmarking and Optimization
-This repository contains python notebooks providing profiling and analysis of an Emforming ASR model running on CPU.
+This repository contains Jupyter notebooks providing profiling and analysis of an Emforming ASR model running on CPU.
 
 The primary notebook is `asr_analysis.ipynb`, which includes code to run and analyse the latency of the full ASR pipeline.
 
@@ -28,9 +28,7 @@ RNNTBundle details: https://docs.pytorch.org/audio/2.2.0/generated/torchaudio.pi
 
 Emformer paper: https://arxiv.org/pdf/2010.10759
 
-Multihead Latent Attention: https://liorsinai.github.io/machine-learning/2025/02/22/mla.html
-
-https://github.com/pytorch/audio/tree/main/examples/asr/emformer_rnnt
+GShard paper: https://arxiv.org/pdf/2010.10759
 
 PyTorch Base Emformer Model:
 https://download.pytorch.org/torchaudio/models/emformer_rnnt_base_librispeech.pt
