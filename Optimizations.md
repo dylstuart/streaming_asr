@@ -47,7 +47,7 @@ The MoE implementation applied to Transformers is described in detail in the [GS
 
 A basic PyTorch implementation of the MoE router is included below:
 
-````python
+```python
 class MoERouter(nn.Module):
     def __init__(self, dim_in, num_experts, top_k):
         super().__init__()
@@ -76,6 +76,7 @@ During the forward pass, the current flops per FFN per token is approx. `2*(512*
 There is a risk that, in introducing MoE, we have converted a compute-bound problem into a bandwidth-bound one, as MoE routing of tokens to separate experts decreases the arithmetic intensity of the FFN. This would require further profiling of an initial implementation to determine.
 
 Of course, any modifications to the model architecture like this will require re-training the model. This is a cost consideration, as training runs can be costly.
+
 
 
 
