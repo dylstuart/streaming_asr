@@ -25,6 +25,8 @@ If your local environment is Windows, you can install ffmpeg with:
 Audio samples in the `/samples` directory are a subset randomly selected from the Mozilla Common Voice dataset at the following link:
 [Mozilla Common Voice Spontaneous Speech ASR Shared Task Test Data](https://datacollective.mozillafoundation.org/datasets/cminc35no007no707hql26lzk)
 
+If running and Colab, you can either [clone the repo directly in Colab](https://gist.github.com/odewahn/2c0d515a838e65b0e9dcdd0c6e177c29), or upload the samples from this repo to a directory named `/samples` created in that session, recreating the structure of this repo.
+
 ## Further reading
 RNNTBundle details: https://docs.pytorch.org/audio/2.2.0/generated/torchaudio.pipelines.RNNTBundle.html#torchaudio.pipelines.RNNTBundle
 
