@@ -16,6 +16,8 @@ pip3 install -r requirements.txt
 ```
 Note: torchaudio.io.StreamReader used in this repo requires torchaudio==2.8.0
 
+The notebooks (.ipynb files) can be run by opening them in Colab (links included in files), starting a Jupyter server, using an IDE or IDE plugin (VSCode can run .ipynb notebooks).
+
 If your local environment is Windows, you can install ffmpeg with:
 `winget install ffmpeg -v 6.1`
 
