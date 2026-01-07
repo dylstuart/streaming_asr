@@ -43,6 +43,40 @@ Recalling the operator breakdown table in `Analysis.md`, a significant proportio
 
 The key concept is shown in the diagram above, where each FFN is replaced with a number of parallel "Expert" FFNs, each with unique weigths. At inference time, each token is dynamically routed to some small subset of the experts, and the outputs of the experts are combined with a weighted sum based on a score that is output by the router/gating function. The key saving comes from the fact that the dimensions of each expert FFN can be smaller than the dimensions that would be required to achieve the same accuracy using a monolithic FFN, as each smaller expert FFN can "specialize" in processing certain types of input tokens.
 
+The MoE implementation applied to Transformers is described in detail in the [GShard paper](https://arxiv.org/pdf/2006.16668).
+
+A basic PyTorch implementation of the MoE router is included below:
+
+````python
+class MoERouter(nn.Module):
+    def __init__(self, dim_in, num_experts, top_k):
+        super().__init__()
+        self.gate = nn.Linear(dim_in, num_experts)
+        self.num_experts = num_experts
+        self.top_k = top_k
+
+    def forward(self, hidden_states):
+        # Project through linear gating layer
+        router_logits = self.gate(hidden_states) # Shape: (tokens, num_experts)
+        router_probs = F.softmax(router_logits, dim=-1, dtype=torch.float)
+        router_weights, selected_experts = torch.topk(router_probs, self.top_k, dim=-1) # shape: (tokens, top_k)
+        # Normalize expert weights
+        router_weights = router_weights / router_weights.sum(dim=-1, keepdim=True)
+        expert_mask = F.one_hot(selected_experts, num_classes=self.num_experts) # Shape: (tokens, top_k, num_experts)
+        return router_logits, router_weights, selected_experts, expert_mask
+
+```
+The output of the experts to be combined/aggregated as a weighted sum per-token using the `router_weights`.
+Besides the router and expert aggregation, the implementation of each Expert FFN is identical to the standard FFN already used in the provided Emformer RNNT model, with the exception that the dimensions may change.
+The exact dimensions to use, and indeed the general parameters of the MoE block (including the `k` in top-k) would need emperical analysis to ensure there isn't an accuracy issue. As a starting point, let's assume k=2 and a reduced FFN intermediate dimension of 768 (as opposed to the current 2048), and 8 experts.
+
+During the forward pass, the current flops per FFN per token is approx. `2*(512*2048 + 2048*512) = 4,194,304`. With the MoE change, this would reduce to `2*(512*768 + 768*512)*2 = 3,145,728`, a 25% flops saving. The cost of this is that the memory footprint of each FFN has increased from `4Bytes * (512*2048 + 2048*512) = 8MiB` to `4Bytes * (512*768 + 768*512)*8 = 24MiB`, a 3x increase. However, if the FFN is truly compute-bound on CPU rather than bandwidth-bound, this will still result in a performance improvement.
+
+There is a risk that, in introducing MoE, we have converted a compute-bound problem into a bandwidth-bound one, as MoE routing of tokens to separate experts decreases the arithmetic intensity of the FFN. This would require further profiling of an initial implementation to determine.
+
+Of course, any modifications to the model architecture like this will require re-training the model. This is a cost consideration, as training runs can be costly.
+
+
 
 
 
